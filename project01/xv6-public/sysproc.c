@@ -103,6 +103,11 @@ sys_setPriority(void)
 int
 sys_yield(void) 
 {
+  myproc()->q_lv = 2;
+  myproc()->tq = 0;
+  myproc()->time = ticks;
+  myproc()->priority = 3;
+
   yield();
   return 0;
 }

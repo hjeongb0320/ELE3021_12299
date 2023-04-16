@@ -207,6 +207,11 @@ fork(void)
   np->parent = curproc;
   *np->tf = *curproc->tf;
 
+  np->tq = 0;
+  np->q_lv = 0;
+  np->time = ticks;
+  np->priority = 3;
+
   // Clear %eax so that fork returns 0 in the child.
   np->tf->eax = 0;
 
@@ -347,6 +352,11 @@ scheduler(void)
       //sched lock process.
 
       running_p = ptable.lock_process;
+
+      //In the middle of the lock processing, process can sleep or die.
+      //so we have to check state of running_p
+      if(running_p->state == RUNNABLE) {
+
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
       // before jumping back to us.
@@ -355,7 +365,7 @@ scheduler(void)
       switchuvm(running_p);
       running_p->state = RUNNING;
 
-      // cprintf("!!LOCKED!! pid : %d | q_lv : %d | tq : %d| priority : %d | upper_bound : %d  \n", running_p->pid, running_p->q_lv , running_p->tq, running_p->priority, ptable.upper_bound);
+      //cprintf("!!LOCKED!! pid : %d | q_lv : %d | tq : %d| priority : %d | upper_bound : %d  \n", running_p->pid, running_p->q_lv , running_p->tq, running_p->priority, ptable.upper_bound);
 
       swtch(&(c->scheduler), running_p->context);
       switchkvm();
@@ -365,6 +375,7 @@ scheduler(void)
       // Process is done running for now.
       // It should have changed its p->state before coming back.
       c->proc = 0;
+      } //else cprintf("Just Looping\n");
     }
     else{
       //mlfq_sched
@@ -402,7 +413,7 @@ scheduler(void)
       switchuvm(running_p);
       running_p->state = RUNNING;
 
-      // cprintf("pid : %d | q_lv : %d | tq : %d| priority : %d | upper_bound : %d  \n", running_p->pid, running_p->q_lv , running_p->tq, running_p->priority, ptable.upper_bound);
+      //cprintf("pid : %d | q_lv : %d | tq : %d| priority : %d | upper_bound : %d  \n", running_p->pid, running_p->q_lv , running_p->tq, running_p->priority, ptable.upper_bound);
 
       swtch(&(c->scheduler), running_p->context);
       switchkvm();
@@ -417,7 +428,7 @@ scheduler(void)
   }
 
     //  if scheduler lock_process finish, unlock scheduler
-    if(ptable.is_lock == 1 && ptable.lock_process->state == ZOMBIE) {
+    if(ptable.is_lock == 1 && ptable.lock_process->state == ZOMBIE ) {
       release(&ptable.lock);
       schedulerUnlock(2019030991);
       acquire(&ptable.lock);
